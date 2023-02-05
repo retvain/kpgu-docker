@@ -1,0 +1,58 @@
+version: '3.7'
+services:
+  kpgu-nginx:
+    build:
+      context: ./nginx
+    image: nginx
+    container_name: kpgu-nginx
+    volumes:
+      - ./projects:/var/www
+    ports:
+      - 8383:80
+      #- 443:443
+    restart: always
+    depends_on:
+      - kpgu-app
+      - kpgu-postgres
+    networks:
+      - kpgu
+
+  kpgu-app:
+    container_name: kpgu-app
+    volumes:
+      - ./projects:/var/www
+    build:
+      context: ./kpgu-app
+      args:
+        HOST_UID: 1000
+    restart: always
+    ports:
+      - 9000
+    environment:
+      XDEBUG_CONFIG: "remote_host=host.docker.internal remote_enable=1"
+      PHP_IDE_CONFIG: "serverName=Docker"
+    networks:
+      - kpgu
+
+  kpgu-postgres:
+    container_name: kpgu-postgres
+    image: postgres:11.10
+    restart: always
+    environment:
+      - TZ=UTC
+      - POSTGRES_MULTIPLE_DATABASES=${DB_DATABASE_KPGU_STATUS},${DB_DATABASE_PROTOTYPE},${DB_DATABASE_KPGU_CORE}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - 54323:5432
+    volumes:
+      - ./postgres/:/docker-entrypoint-initdb.d/
+    build:
+      context: ./postgres
+    networks:
+      - kpgu
+
+networks:
+  kpgu:
+    name: kpgu-network
+    driver: bridge
